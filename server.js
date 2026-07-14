@@ -2,21 +2,25 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const Database = require('better-sqlite3'); // GLIBC 호환 오류 원천 차단
+const Database = require('better-sqlite3');
+const cloudinary = require('cloudinary').v2; // ☁️ Cloudinary SDK 로드
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// 업로드 디렉토리 설정 및 자동 생성
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
+/* ================= Cloudinary 인증 설정 ================= */
+// 💡 [필독]기에 본인의 Cloudinary 대시보드 정보들을 입력해 주세요!
+cloudinary.config({
+    cloud_name: 'yvg67ldu', // 클라우드 이름 기재
+    api_key: '214413634643912',       // API Key 기재
+    api_secret: 'MhFGjCs8neWx7httbH_or7zvY2E'  // API Secret 기재
+});
+/* ======================================================= */
 
-// SQLite 데이터베이스 연결 (better-sqlite3 방식)
+// SQLite 데이터베이스 연결
 const db = new Database(path.join(__dirname, 'database.db'));
 
-// 테이블 초기화 구문 (role 컬럼 추가)
+// 테이블 초기화 구문
 db.exec(`
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,7 +57,7 @@ db.exec(`
     );
 `);
 
-// 👑 서버 실행 시 'Admin' 계정이 존재하지 않는 경우 자동으로 삽입
+// 'Admin' 계정 자동 삽입
 try {
     const adminExists = db.prepare("SELECT * FROM users WHERE username = 'Admin'").get();
     if (!adminExists) {
@@ -67,29 +71,16 @@ try {
 
 console.log("Database initialized successfully.");
 
-// 미들웨어 등록
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// 정적 파일 라우팅 설정
 app.use(express.static(__dirname));
-app.use('/uploads', express.static(uploadDir));
 
-// 기본 루트 접속 시 index(painhub.html) 호출
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'painhub.html'));
 });
 
-// Multer 파일 업로드 엔진 세팅
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
-    }
-});
+// 메모리 보관형 Multer 설정 (서버 가상 하드디스크 미사용)
+const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 
@@ -115,7 +106,7 @@ app.post('/api/register', (req, res) => {
     }
 });
 
-// 2. 로그인 API (유저 등급인 role 값을 브라우저로 동시 전달)
+// 2. 로그인 API
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     try {
@@ -135,22 +126,44 @@ app.post('/api/login', (req, res) => {
     }
 });
 
-// 3. 동영상 게시글 등록 API
+// 3. 동영상 게시글 등록 API (Cloudinary Stream 업로드 버전)
 app.post('/api/upload', upload.single('videoFile'), (req, res) => {
     const { videoTitle, videoDesc, username } = req.body;
     if (!req.file) {
         return res.status(400).json({ success: false, message: "비디오 파일을 찾을 수 없습니다." });
     }
 
-    const filepath = `/uploads/${req.file.filename}`;
+    // 파일 버퍼 스트림을 Cloudinary로 직접 전송하는 함수 정의
+    const uploadStream = () => {
+        return new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+                {
+                    resource_type: 'video', // 동영상 타입 강제 지정
+                    folder: 'painhub_videos' // Cloudinary 보관 폴더명 지정
+                },
+                (error, result) => {
+                    if (error) return reject(error);
+                    resolve(result);
+                }
+            );
+            stream.end(req.file.buffer); // 버퍼 전달 후 스트림 종료
+        });
+    };
 
-    try {
-        const stmt = db.prepare("INSERT INTO videos (title, desc, filepath, username) VALUES (?, ?, ?, ?)");
-        stmt.run(videoTitle, videoDesc || '', filepath, username);
-        res.json({ success: true, message: "동영상이 정상적으로 게시되었습니다!" });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "동영상 DB 메타데이터 등록 실패" });
-    }
+    uploadStream()
+        .then((result) => {
+            // Cloudinary에서 반환해 준 보안 스트리밍 URL (secure_url)을 DB에 저장
+            const secureUrl = result.secure_url;
+
+            const stmt = db.prepare("INSERT INTO videos (title, desc, filepath, username) VALUES (?, ?, ?, ?)");
+            stmt.run(videoTitle, videoDesc || '', secureUrl, username);
+
+            res.json({ success: true, message: "동영상이 Cloudinary 클라우드에 영구 업로드되었습니다!" });
+        })
+        .catch((err) => {
+            console.error("Cloudinary 업로드 오류 발생:", err);
+            res.status(500).json({ success: false, message: "클라우드 스토리지 전송 실패" });
+        });
 });
 
 // 4. 동영상 스트리밍 리스트 반환 API
@@ -214,8 +227,8 @@ app.get('/api/comments/:videoId', (req, res) => {
     }
 });
 
-// 8. 동영상 삭제 API (작성 본인 또는 어드민 등급 검증 후 일괄 소멸)
-app.delete('/api/videos/:id', (req, res) => {
+// 8. 동영상 삭제 API (Cloudinary에서도 영구 파괴 처리)
+app.delete('/api/videos/:id', async (req, res) => {
     const videoId = req.params.id;
     const { username } = req.body;
 
@@ -230,23 +243,30 @@ app.delete('/api/videos/:id', (req, res) => {
             return res.status(404).json({ success: false, message: "등록되지 않은 클립이거나 삭제된 파일입니다." });
         }
 
-        // 👑 어드민 계정('Admin')이거나 업로드한 본인과 세션 명이 일치할 때만 완전 삭제 통과
         if (username !== 'Admin' && video.username !== username) {
             return res.status(403).json({ success: false, message: "관리자 혹은 영상 작성자 전용 권한입니다." });
         }
 
-        // 데이터베이스 정합성을 유지하기 위해 관련된 자식 레코드(코멘트, 라이크) 제거 선행
+        // A. DB 내 메타데이터 완전히 지우기
         db.prepare("DELETE FROM comments WHERE videoId = ?").run(videoId);
         db.prepare("DELETE FROM likes WHERE videoId = ?").run(videoId);
         db.prepare("DELETE FROM videos WHERE id = ?").run(videoId);
 
-        // 컨테이너 가상 드라이브에 적재된 영상 실제 확장자 파일 소거
-        const absolutePath = path.join(__dirname, video.filepath);
-        if (fs.existsSync(absolutePath)) {
-            fs.unlinkSync(absolutePath);
+        // B. Cloudinary Storage에서 해당 비디오 완전히 날리기
+        // 예시 URL: https://res.cloudinary.com/cloudname/video/upload/v12345/painhub_videos/file_id.mp4
+        // 필요한 Public ID 형태: 'painhub_videos/file_id'
+        const urlParts = video.filepath.split('/');
+        const folderIndex = urlParts.indexOf('painhub_videos');
+        
+        if (folderIndex !== -1) {
+            // "painhub_videos/실제파일명"만 파싱하고 뒤의 확장자(.mp4)는 잘라냅니다.
+            const publicIdWithExtension = urlParts.slice(folderIndex).join('/');
+            const publicId = publicIdWithExtension.substring(0, publicIdWithExtension.lastIndexOf('.'));
+
+            await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
         }
 
-        res.json({ success: true, message: "동영상이 정상 소멸 처리되었습니다." });
+        res.json({ success: true, message: "동영상이 로컬 DB 및 Cloudinary 클라우드 스페이스에서 완전히 삭제되었습니다." });
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: "삭제 처리 연산 동작 중 시스템 치명적 예외" });

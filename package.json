@@ -12,6 +12,7 @@
   "type": "commonjs",
   "dependencies": {
     "better-sqlite3": "^12.11.1",
+    "cloudinary": "^2.10.0",
     "express": "^5.2.1",
     "multer": "^2.2.0",
     "sqlite": "^5.1.1"
