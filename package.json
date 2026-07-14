@@ -11,12 +11,13 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "better-sqlite3": "^12.11.1",
     "express": "^5.2.1",
     "multer": "^2.2.0",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^6.0.1"
+    "sqlite": "^5.1.1"
   },
   "allowScripts": {
-    "sqlite3@6.0.1": true
+    "sqlite3@6.0.1": true,
+    "better-sqlite3@12.11.1": true
   }
 }
