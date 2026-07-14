@@ -366,6 +366,7 @@
             
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px; border-top: 1px solid #333; padding-top: 15px;">
                 <button id="deleteVideoBtn" class="btn" style="background-color: #cc0000; color: white; display: none;">삭제하기</button>
+                <button id="downloadVideoBtn" class="btn" style="background-color: #007bff; color: white;">다운로드</button>
                 <button id="closePlayerBtn" class="btn btn-secondary" onclick="closePlayer()">닫기</button>
             </div>
         </div>
@@ -388,6 +389,7 @@
         const likeCount = document.getElementById('likeCount');
         const likeBtn = document.getElementById('likeBtn');
         const deleteVideoBtn = document.getElementById('deleteVideoBtn');
+        const downloadVideoBtn = document.getElementById('downloadVideoBtn');
 
         const commentInput = document.getElementById('commentInput');
         const submitCommentBtn = document.getElementById('submitCommentBtn');
@@ -663,6 +665,21 @@
                 console.error(err);
                 alert("동영상 삭제 과정에서 치명적 서버 응답 유실");
             }
+        });
+
+        // 📥 10. 동영상 다운로드 기능 구현
+        downloadVideoBtn.addEventListener('click', () => {
+            if (!currentPlayingVideo) return;
+
+            const fileUrl = currentPlayingVideo.filepath;
+            const fileName = fileUrl.substring(fileUrl.lastIndexOf('/') + 1);
+
+            const link = document.createElement('a');
+            link.href = fileUrl;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         });
     </script>
 </body>
