@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painhub</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Arial', sans-serif; }
+        body { background-color: #0f0f0f; color: #ffffff; padding-bottom: 50px; }
+        header { display: flex; justify-content: space-between; align-items: center; background-color: #1a1a1a; padding: 10px 20px; position: fixed; top: 0; width: 100%; height: 60px; border-bottom: 2px solid #ff9900; z-index: 1000; }
+        .nav-left { display: flex; align-items: center; gap: 20px; }
+        .logo { font-size: 24px; font-weight: bold; text-decoration: none; color: #ffffff; white-space: nowrap; }
+        .logo span { color: #ff9900; background-color: #333333; padding: 2px 6px; border-radius: 4px; margin-left: 2px; }
+        .search-box { display: flex; align-items: center; background-color: #2b2b2b; border: 1px solid #444444; border-radius: 20px; padding: 5px 15px; width: 320px; }
+        .search-box input { background: none; border: none; color: white; width: 100%; outline: none; font-size: 14px; }
+        .search-box button { background: none; border: none; color: #ff9900; cursor: pointer; font-weight: bold; font-size: 13px; white-space: nowrap; margin-left: 8px; }
+        .nav-right { display: flex; align-items: center; gap: 25px; }
+        .nav-links { display: flex; gap: 20px; }
+        .nav-links button.nav-link-btn { background: none; border: none; color: #cccccc; font-size: 15px; font-weight: bold; cursor: pointer; }
+        .nav-links button.nav-link-btn:hover { color: #ff9900; }
+        .login-btn, .register-btn { background-color: #ff9900; color: #000000; border: none; padding: 8px 18px; font-size: 14px; font-weight: bold; border-radius: 20px; cursor: pointer; }
+        .register-btn { background-color: #333333; color: #ffffff; border: 1px solid #ff9900; margin-right: 5px;}
+        .user-info-text { color: #ff9900; font-weight: bold; font-size: 14px; }
+        main { margin-top: 90px; padding: 20px; max-width: 1200px; margin-left: auto; margin-right: auto; }
+        .section-title { font-size: 20px; margin-bottom: 20px; border-left: 4px solid #ff9900; padding-left: 10px; }
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .video-card { background-color: #1a1a1a; border-radius: 8px; overflow: hidden; cursor: pointer; border: 1px solid #2b2b2b; position: relative; }
+        .video-card:hover { border-color: #ff9900; }
+        .thumbnail-placeholder { width: 100%; height: 160px; background-color: #2b2b2b; display: flex; justify-content: center; align-items: center; }
+        .thumbnail-placeholder::after { content: "PLAY"; font-size: 14px; font-weight: bold; color: #ff9900; background-color: rgba(0, 0, 0, 0.8); padding: 8px 16px; border-radius: 20px; letter-spacing: 1px; }
+        .video-info { padding: 12px; position: relative; }
+        .video-title { font-size: 15px; font-weight: bold; margin-bottom: 6px; padding-right: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .video-author { position: absolute; right: 12px; top: 14px; font-size: 12px; color: #ff9900; background: #2b2b2b; padding: 2px 6px; border-radius: 4px; max-width: 75px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
+        
+        .video-desc { font-size: 13px; color: #888888; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
+        .no-videos { grid-column: 1 / -1; padding: 50px; text-align: center; color: #888888; font-size: 16px; }
+        
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.9); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background-color: #1a1a1a; border: 2px solid #ff9900; border-radius: 10px; padding: 30px; width: 90%; max-width: 450px; position: relative; text-align: center; }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; color: #888888; cursor: pointer; background: none; border: none; }
+        .modal-content h3 { font-size: 22px; margin-bottom: 25px; color: #ffffff; }
+        .modal-content h3 span { color: #ff9900; }
+        .input-group { margin-bottom: 15px; text-align: left; }
+        .input-group label { display: block; font-size: 13px; color: #aaaaaa; margin-bottom: 5px; }
+        .input-group input[type="text"], .input-group input[type="password"], .input-group textarea { width: 100%; padding: 12px; background-color: #2b2b2b; border: 1px solid #444444; border-radius: 6px; color: white; outline: none; }
+        .input-group textarea { height: 60px; resize: none; }
+        .input-group input:focus, .input-group textarea:focus { border-color: #ff9900; }
+        .input-group input[type="file"] { display: none; }
+        .file-label { display: block; text-align: center; padding: 15px; background-color: #2b2b2b; border: 2px dashed #444444; border-radius: 6px; cursor: pointer; color: #aaaaaa; }
+        .submit-btn { width: 100%; padding: 12px; background-color: #ff9900; color: #000000; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+
+        #playerModal .modal-content { max-width: 800px; width: 95%; padding: 40px 20px 20px 20px; text-align: left;}
+        .video-container { width: 100%; background-color: #000; border-radius: 6px; aspect-ratio: 16 / 9; }
+        .video-container video { width: 100%; height: 100%; display: block; }
+        .player-info { margin-top: 15px; display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #333; padding-bottom: 15px;}
+        .player-title { font-size: 20px; font-weight: bold; color: #ffffff; }
+        .player-author-tag { color: #ff9900; font-size: 14px; margin-top: 4px;}
+        
+        .like-section { display: flex; align-items: center; gap: 8px; }
+        .like-btn { background: #2b2b2b; border: 1px solid #ff9900; color: white; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 6px;}
+        .like-btn:hover { background: #333; }
+
+        .comment-section { margin-top: 15px; }
+        .comment-section h5 { font-size: 16px; margin-bottom: 10px; color: #ff9900;}
+        .comment-form { display: flex; gap: 10px; margin-bottom: 15px; }
+        .comment-form input { flex: 1; padding: 10px; background: #2b2b2b; border: 1px solid #444; border-radius: 4px; color: white; outline: none;}
+        .comment-form input:focus { border-color: #ff9900; }
+        .comment-form button { background: #ff9900; border: none; padding: 0 15px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .comment-list { max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .comment-item { background: #2b2b2b; padding: 8px 12px; border-radius: 4px; font-size: 14px; }
+        .comment-user { color: #ff9900; font-weight: bold; margin-right: 8px; font-size: 13px;}
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="nav-left">
+            <a href="painhub.html" class="logo">Pain<span>hub</span></a>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="검색어를 입력하세요...">
+                <button id="searchBtn">검색</button>
+            </div>
+        </div>
+        <div class="nav-right">
+            <nav class="nav-links">
+                <button class="nav-link-btn" id="openUploadBtn">게시</button>
+            </nav>
+            <div id="authContainer">
+                <button class="register-btn" id="openRegisterBtn">회원가입</button>
+                <button class="login-btn" id="openLoginBtn">로그인</button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <h2 class="section-title">최근 게시된 동영상</h2>
+        <div class="video-grid" id="videoGrid">
+            <div class="no-videos" id="noVideosMsg">게시된 동영상이 없습니다.</div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="registerModal">
+        <div class="modal-content">
+            <button class="close-btn" id="closeRegisterBtn">&times;</button>
+            <h3>Pain<span>hub</span> 회원가입</h3>
+            <form id="registerForm">
+                <div class="input-group">
+                    <label for="regUsername">아이디</label>
+                    <input type="text" id="regUsername" placeholder="사용할 아이디를 입력하세요" required>
+                </div>
+                <div class="input-group">
+                    <label for="regPassword">비밀번호</label>
+                    <input type="password" id="regPassword" placeholder="비밀번호를 입력하세요" required>
+                </div>
+                <button type="submit" class="submit-btn">가입하기</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal-content">
+            <button class="close-btn" id="closeLoginBtn">&times;</button>
+            <h3>Pain<span>hub</span> 로그인</h3>
+            <form id="loginForm">
+                <div class="input-group">
+                    <label for="username">아이디</label>
+                    <input type="text" id="username" placeholder="아이디를 입력하세요" required>
+                </div>
+                <div class="input-group">
+                    <label for="password">비밀번호</label>
+                    <input type="password" id="password" placeholder="비밀번호를 입력하세요" required>
+                </div>
+                <button type="submit" class="submit-btn">로그인</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="uploadModal">
+        <div class="modal-content">
+            <button class="close-btn" id="closeUploadBtn">&times;</button>
+            <h3>동영상 <span>게시하기</span></h3>
+            <form id="uploadForm">
+                <div class="input-group">
+                    <label>동영상 파일</label>
+                    <label for="videoFile" class="file-label" id="fileLabelTxt">동영상 파일을 선택하세요</label>
+                    <input type="file" id="videoFile" accept="video/*" required>
+                </div>
+                <div class="input-group">
+                    <label for="videoTitle">제목</label>
+                    <input type="text" id="videoTitle" placeholder="동영상 제목을 입력하세요" required>
+                </div>
+                <div class="input-group">
+                    <label for="videoDesc">설명</label>
+                    <textarea id="videoDesc" placeholder="동영상에 대한 설명을 적어주세요"></textarea>
+                </div>
+                <button type="submit" class="submit-btn">업로드</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="playerModal">
+        <div class="modal-content">
+            <button class="close-btn" id="closePlayerBtn">&times;</button>
+            <div class="video-container">
+                <video id="mainVideoPlayer" controls autoplay></video>
+            </div>
+            <div class="player-info">
+                <div>
+                    <h4 class="player-title" id="playerTitle">동영상 제목</h4>
+                    <div class="player-author-tag" id="playerAuthor">작성자: </div>
+                </div>
+                <div class="like-section">
+                    <button class="like-btn" id="likeBtn">좋아요 <span id="likeCount">0</span></button>
+                </div>
+            </div>
+            
+            <div class="comment-section">
+                <h5>댓글</h5>
+                <form class="comment-form" id="commentForm">
+                    <input type="text" id="commentInput" placeholder="댓글을 남겨보세요..." required>
+                    <button type="submit">등록</button>
+                </form>
+                <div class="comment-list" id="commentList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTargetVideoId = null;
+        let loggedInUser = localStorage.getItem('loginUser') || null;
+        let allVideos = [];
+
+        const loginModal = document.getElementById('loginModal');
+        const registerModal = document.getElementById('registerModal');
+        const uploadModal = document.getElementById('uploadModal');
+        const playerModal = document.getElementById('playerModal');
+        
+        const authContainer = document.getElementById('authContainer');
+        const videoGrid = document.getElementById('videoGrid');
+        const noVideosMsg = document.getElementById('noVideosMsg');
+        const fileLabelTxt = document.getElementById('fileLabelTxt');
+        const videoFileInput = document.getElementById('videoFile');
+        const mainVideoPlayer = document.getElementById('mainVideoPlayer');
+
+        window.addEventListener('DOMContentLoaded', () => {
+            updateAuthUI();
+            fetchVideos();
+        });
+
+        function updateAuthUI() {
+            if (loggedInUser) {
+                authContainer.innerHTML = `<span class="user-info-text">${loggedInUser}님</span> <button class="register-btn" onclick="logout()" style="margin-left:10px;">로그아웃</button>`;
+            } else {
+                authContainer.innerHTML = `
+                    <button class="register-btn" id="openRegisterBtn" onclick="registerModal.style.display='flex'">회원가입</button>
+                    <button class="login-btn" id="openLoginBtn" onclick="loginModal.style.display='flex'">로그인</button>
+                `;
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('loginUser');
+            loggedInUser = null;
+            alert("로그아웃 되었습니다.");
+            updateAuthUI();
+        }
+
+        /* --- 회원가입 처리 --- */
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('regUsername').value;
+            const password = document.getElementById('regPassword').value;
+
+            const res = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            alert(data.message);
+            if(data.success) {
+                document.getElementById('registerForm').reset();
+                registerModal.style.display = 'none';
+            }
+        });
+
+        /* --- 로그인 처리 --- */
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if(data.success) {
+                loggedInUser = data.username;
+                localStorage.setItem('loginUser', loggedInUser);
+                alert(`${loggedInUser}님, 환영합니다!`);
+                loginModal.style.display = 'none';
+                document.getElementById('loginForm').reset();
+                updateAuthUI();
+            } else {
+                alert(data.message);
+            }
+        });
+
+        /* --- 게시 버튼 제어 --- */
+        document.getElementById('openUploadBtn').addEventListener('click', () => {
+            if (!loggedInUser) {
+                alert("동영상 업로드는 로그인한 유저만 가능합니다.");
+                loginModal.style.display = 'flex';
+                return;
+            }
+            uploadModal.style.display = 'flex';
+        });
+
+        videoFileInput.addEventListener('change', (e) => {
+            if(e.target.files.length > 0) {
+                fileLabelTxt.textContent = `선택됨: ${e.target.files[0].name}`;
+                fileLabelTxt.style.borderColor = '#ff9900';
+            }
+        });
+
+        /* --- 동영상 업로드 --- */
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const file = videoFileInput.files[0];
+            const title = document.getElementById('videoTitle').value;
+            const desc = document.getElementById('videoDesc').value;
+
+            const formData = new FormData();
+            formData.append('videoFile', file);
+            formData.append('videoTitle', title);
+            formData.append('videoDesc', desc);
+            formData.append('username', loggedInUser);
+
+            const response = await fetch('/api/upload', { method: 'POST', body: formData });
+            const result = await response.json();
+            alert(result.message);
+            if(result.success) {
+                document.getElementById('uploadForm').reset();
+                fileLabelTxt.textContent = '동영상 파일을 선택하세요';
+                fileLabelTxt.style.borderColor = '#444444';
+                uploadModal.style.display = 'none';
+                fetchVideos();
+            }
+        });
+
+        /* --- 동영상 리스트 fetch --- */
+        async function fetchVideos() {
+            try {
+                const response = await fetch('/api/videos');
+                allVideos = await response.json();
+                renderVideos(allVideos);
+            } catch (error) {
+                console.error("비디오 로드 오류:", error);
+            }
+        }
+
+        /* --- 동영상 화면 렌더링 함수 --- */
+        function renderVideos(videoList) {
+            const cards = videoGrid.querySelectorAll('.video-card');
+            cards.forEach(card => card.remove());
+
+            if (!videoList || videoList.length === 0) {
+                noVideosMsg.style.display = 'block';
+                return;
+            }
+            noVideosMsg.style.display = 'none';
+
+            videoList.forEach(video => {
+                const card = document.createElement('div');
+                card.classList.add('video-card');
+                card.innerHTML = `
+                    <div class="thumbnail-placeholder"></div>
+                    <div class="video-info">
+                        <div class="video-title">${video.title}</div>
+                        <div class="video-author" title="${video.username}">${video.username}</div>
+                        <div class="video-desc">${video.desc || '설명이 없습니다.'}</div>
+                    </div>
+                `;
+                card.addEventListener('click', () => openPlayer(video));
+                videoGrid.appendChild(card);
+            });
+        }
+
+        /* --- 플레이어 오픈 및 연동 --- */
+        async function openPlayer(video) {
+            currentTargetVideoId = video.id;
+            mainVideoPlayer.src = video.filepath;
+            document.getElementById('playerTitle').textContent = video.title;
+            document.getElementById('playerAuthor').textContent = `작성자: ${video.username}`;
+            document.getElementById('likeCount').textContent = video.likeCount || 0;
+            
+            loadComments(video.id);
+            playerModal.style.display = 'flex';
+        }
+
+        async function loadComments(videoId) {
+            const res = await fetch(`/api/comments/${videoId}`);
+            const comments = await res.json();
+            const list = document.getElementById('commentList');
+            list.innerHTML = '';
+            comments.forEach(c => {
+                const div = document.createElement('div');
+                div.classList.add('comment-item');
+                div.innerHTML = `<span class="comment-user">${c.username}</span><span>${c.content}</span>`;
+                list.appendChild(div);
+            });
+        }
+
+        /* --- 댓글 작성 --- */
+        document.getElementById('commentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!loggedInUser) {
+                alert("댓글 작성은 로그인 후 이용 가능합니다.");
+                return;
+            }
+            const input = document.getElementById('commentInput');
+            const content = input.value;
+
+            const res = await fetch('/api/comments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ videoId: currentTargetVideoId, username: loggedInUser, content })
+            });
+            if(res.ok) {
+                input.value = '';
+                loadComments(currentTargetVideoId);
+            }
+        });
+
+        /* --- 좋아요 처리 --- */
+        document.getElementById('likeBtn').addEventListener('click', async () => {
+            if (!loggedInUser) {
+                alert("좋아요 기능은 로그인 후 이용 가능합니다.");
+                return;
+            }
+            const res = await fetch('/api/like', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ videoId: currentTargetVideoId, username: loggedInUser })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                const likeCountSpan = document.getElementById('likeCount');
+                let currentLikes = parseInt(likeCountSpan.textContent);
+                likeCountSpan.textContent = data.action === 'like' ? currentLikes + 1 : currentLikes - 1;
+                
+                const response = await fetch('/api/videos');
+                allVideos = await response.json();
+            }
+        });
+
+        function closePlayer() {
+            mainVideoPlayer.pause();
+            mainVideoPlayer.src = "";
+            playerModal.style.display = 'none';
+        }
+
+        document.getElementById('closeLoginBtn').addEventListener('click', () => loginModal.style.display = 'none');
+        document.getElementById('closeRegisterBtn').addEventListener('click', () => registerModal.style.display = 'none');
+        document.getElementById('closeUploadBtn').addEventListener('click', () => uploadModal.style.display = 'none');
+        document.getElementById('closePlayerBtn').addEventListener('click', closePlayer);
+
+        window.addEventListener('click', (e) => {
+            if (e.target === loginModal) loginModal.style.display = 'none';
+            if (e.target === registerModal) registerModal.style.display = 'none';
+            if (e.target === uploadModal) uploadModal.style.display = 'none';
+            if (e.target === playerModal) closePlayer();
+        });
+
+        /* --- 실시간 검색 로직 --- */
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+
+        function handleSearch() {
+            const keyword = searchInput.value.toLowerCase().trim();
+            
+            if (keyword === "") {
+                renderVideos(allVideos);
+                return;
+            }
+            
+            const filtered = allVideos.filter(video => {
+                const titleMatch = video.title ? video.title.toLowerCase().includes(keyword) : false;
+                const descMatch = video.desc ? video.desc.toLowerCase().includes(keyword) : false;
+                const authorMatch = video.username ? video.username.toLowerCase().includes(keyword) : false;
+                
+                return titleMatch || descMatch || authorMatch;
+            });
+            
+            renderVideos(filtered);
+        }
+
+        searchBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            handleSearch();
+        });
+
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSearch();
+            }
+        });
+
+        searchInput.addEventListener('input', () => {
+            if (searchInput.value.trim() === "") {
+                renderVideos(allVideos);
+            }
+        });
+    </script>
+</body>
+</html>
